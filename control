@@ -1,0 +1,9 @@
+Package: com.yg.themeboxdump
+Name: ThemeBoxDump
+Version: 1.0.0
+Architecture: iphoneos-arm
+Description: Hook ThemeBox DIY methods to dump format
+Maintainer: yg
+Author: yg
+Section: Tweaks
+Depends: mobilesubstrate
