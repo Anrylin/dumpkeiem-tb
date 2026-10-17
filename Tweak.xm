@@ -47,7 +47,7 @@ static void LogLine(NSString *fmt, ...) {
 }
 
 // 打印一个对象里的 ivar（UIImage 等）
-static void DumpObj(id o, NSString *tag) {
+static void __attribute__((unused)) DumpObj(id o, NSString *tag) {
     @try {
         NSString *desc = [o description];
         LogLine(@"%@ : %@", tag, desc ?: @"(nil)");
