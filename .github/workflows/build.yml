@@ -1,0 +1,82 @@
+name: build-deb
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Theos
+        uses: Randomblock1/theos-action@main
+
+      - name: Build (rootless + rootful)
+        run: |
+          mkdir -p out
+          : > build.log
+          for scheme in rootless rootful; do
+            make clean >/dev/null 2>&1 || true
+            if [ "$scheme" = "rootful" ]; then
+              make package FINALPACKAGE=1 2>&1 | tee -a build.log || true
+            else
+              make package THEOS_PACKAGE_SCHEME="$scheme" FINALPACKAGE=1 2>&1 | tee -a build.log || true
+            fi
+            for f in packages/*.deb; do
+              [ -e "$f" ] || continue
+              base=$(basename "$f" .deb)
+              cp "$f" "out/${base}__${scheme}.deb"
+            done
+          done
+          echo "=== built ==="; ls -la out || true
+          echo "=== sha256 ==="; shasum -a 256 out/*.deb || true
+
+      - name: Upload debs (artifact)
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: debs
+          path: out/*.deb
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Publish release (fallback channel)
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ls out/*.deb >/dev/null 2>&1; then
+            gh release delete latest --yes --cleanup-tag 2>/dev/null || true
+            gh release create latest $(ls out/*.deb) \
+              --title "latest build" \
+              --notes "auto $(date -u +%FT%TZ)" || true
+            echo "release published"
+          else
+            echo "no deb to publish"
+          fi
+
+      # ★ 无论成败，都把编译日志提交进仓库 —— 这样失败原因一定能读到
+      - name: Commit build log
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          path="logs/build-${{ github.run_id }}-${{ github.run_attempt }}.log"
+          b64=$(base64 -i build.log | tr -d '\n')
+          jq -n --arg m "build log ${{ github.run_id }}" --arg c "$b64" \
+             '{message:$m, content:$c}' > /tmp/payload.json
+          curl -sS -X PUT \
+            -H "Authorization: token $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "User-Agent: gh" \
+            "https://api.github.com/repos/${{ github.repository }}/contents/$path" \
+            -d @/tmp/payload.json | head -c 400
+          echo
+          echo "log committed to $path"
