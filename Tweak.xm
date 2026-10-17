@@ -1,4 +1,4 @@
-// Tweak.xm —— ThemeBoxDump v1
+﻿// Tweak.xm —— ThemeBoxDump v1
 // 钩住 ThemeBox 的 DIY/主题方法，抓出它的真实路径和文件命名
 // 注入到【有 ThemeBox 的那个微信】
 
@@ -73,7 +73,7 @@ static int InstallHooks(void) {
         // 1) currentThemeDIYPath -> 返回 DIY 路径
         SEL s1 = NSSelectorFromString(@"currentThemeDIYPath");
         if ([c instancesRespondToSelector:s1]) {
-            Method m = method_getInstanceMethod(c, s1);
+            Method m = class_getInstanceMethod(c, s1);
             IMP orig = method_getImplementation(m);
             IMP r = imp_implementationWithBlock(^id(id self) {
                 id ret = ((id(*)(id, SEL))orig)(self, s1);
@@ -88,7 +88,7 @@ static int InstallHooks(void) {
         for (NSString *sn in @[@"themePath", @"baseThemePath"]) {
             SEL s = NSSelectorFromString(sn);
             if ([c instancesRespondToSelector:s]) {
-                Method m = method_getInstanceMethod(c, s);
+                Method m = class_getInstanceMethod(c, s);
                 IMP orig = method_getImplementation(m);
                 IMP r = imp_implementationWithBlock(^id(id self) {
                     id ret = ((id(*)(id, SEL))orig)(self, s);
@@ -104,7 +104,7 @@ static int InstallHooks(void) {
         for (NSString *sn in @[@"loadDIYFiles", @"loadThemeDIYFiles", @"loadCustomThemeFiles"]) {
             SEL s = NSSelectorFromString(sn);
             if ([c instancesRespondToSelector:s]) {
-                Method m = method_getInstanceMethod(c, s);
+                Method m = class_getInstanceMethod(c, s);
                 IMP orig = method_getImplementation(m);
                 IMP r = imp_implementationWithBlock(^void(id self) {
                     LogLine(@"★ %@ 被调用 -[%@]", sn, NSStringFromClass([self class]));
@@ -125,7 +125,7 @@ static int InstallHooks(void) {
         // 4) diyImageNamed: -> 抓它查找的名字
         SEL s4 = NSSelectorFromString(@"diyImageNamed:");
         if ([c instancesRespondToSelector:s4]) {
-            Method m = method_getInstanceMethod(c, s4);
+            Method m = class_getInstanceMethod(c, s4);
             IMP orig = method_getImplementation(m);
             IMP r = imp_implementationWithBlock(^id(id self, id name) {
                 LogLine(@"★ diyImageNamed:%@  -[%@]", name, NSStringFromClass([self class]));
